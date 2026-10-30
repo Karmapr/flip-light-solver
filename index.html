@@ -1,0 +1,83 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>翻转灯谜求解器 · 精确最少点击</title>
+<meta name="description" content="对任意矩形棋盘求达到目标的最少点击方案，并明确标注最优性是否已被证明。">
+<link rel="stylesheet" href="/src/style.css">
+</head>
+<body>
+<div class="app">
+  <aside class="rail">
+    <header class="masthead">
+      <h1>翻转灯谜求解器</h1>
+    </header>
+
+    <section class="controls">
+      <div class="group">
+        <span class="group-label">尺寸</span>
+        <div class="row">
+          <input id="rows" type="number" inputmode="numeric" min="1" max="64" value="5" aria-label="行数">
+          <span class="times">×</span>
+          <input id="cols" type="number" inputmode="numeric" min="1" max="64" value="5" aria-label="列数">
+          <button id="apply" type="button">应用</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <span class="group-label">盘面</span>
+        <div class="row grid2">
+          <button id="all-off" type="button">全部关灯</button>
+          <button id="all-on" type="button">全部开灯</button>
+          <button id="random-solvable" type="button">随机可解</button>
+          <button id="random-any" type="button">完全随机</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <span class="group-label">点击模式</span>
+        <div class="seg" id="mode" role="group" aria-label="点击模式">
+          <button type="button" data-mode="setup" aria-pressed="true">设置盘面</button>
+          <button type="button" data-mode="game" aria-pressed="false">游戏</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <span class="group-label">目标</span>
+        <div class="seg" id="goal" role="group" aria-label="目标">
+          <button type="button" data-goal="off" aria-pressed="true">全部熄灭</button>
+          <button type="button" data-goal="on" aria-pressed="false">全部点亮</button>
+        </div>
+      </div>
+
+      <div class="group">
+        <span class="group-label">时限</span>
+        <div class="row">
+          <input id="budget" type="number" inputmode="numeric" min="0" max="600" step="1" value="10"
+                 aria-label="解题时限秒" title="0 表示不限时">
+          <span class="times">秒</span>
+          <button id="solve" type="button" class="primary">求解</button>
+        </div>
+      </div>
+    </section>
+
+    <aside id="result" class="result"></aside>
+  </aside>
+
+  <main class="stage" id="board-wrap" aria-label="棋盘" tabindex="0">
+    <div class="play-status" aria-live="polite">
+      <span class="status-dot" aria-hidden="true"></span>
+      <span id="play-status">设置盘面</span>
+    </div>
+    <div class="view-controls" aria-label="视图控制">
+      <button id="zoom-out" type="button" aria-label="缩小" title="缩小">−</button>
+      <span id="zoom-level" class="zoom-level" aria-live="off">100%</span>
+      <button id="zoom-in" type="button" aria-label="放大" title="放大">+</button>
+      <button id="view-reset" type="button" class="view-reset" title="缩放与平移归零">复位</button>
+    </div>
+  </main>
+</div>
+<script type="module" src="/src/main.js"></script>
+</body>
+</html>
