@@ -253,6 +253,30 @@ button:focus-visible {
   font-variant-numeric: tabular-nums;
 }
 
+/* 结果卡下方的源代码仓库入口 */
+.source-link {
+  align-self: center;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 40px;
+  height: 40px;
+  margin-top: -14px;
+  border-radius: 8px;
+  color: var(--ink-dim);
+  transition: color 120ms ease, background 120ms ease;
+}
+
+.source-link:hover {
+  color: var(--ink);
+  background: var(--bg);
+}
+
+.source-link:focus-visible {
+  outline: 2px solid var(--ink);
+  outline-offset: 2px;
+}
+
 /* 右栏：左键只负责下棋，右键 / 中键 / 空格负责移动视图。 */
 .stage {
   position: relative;
