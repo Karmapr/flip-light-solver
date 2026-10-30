@@ -44,7 +44,8 @@ export function createResult(root: HTMLElement): ResultView {
       root.replaceChildren();
 
       if (model.kind === 'idle') {
-        root.className = 'result';
+        root.className = 'result pending';
+        root.textContent = '尚未求解';
         return;
       }
 

@@ -31,6 +31,9 @@ const RIPPLE_FRAMES = 14;
 const CELEBRATE_FRAMES = 42;
 const SETTLE = 0.94;
 
+/** 触屏单指：位移超过这个像素数就算「滑动平移」，否则算「点一下下棋」。 */
+const TOUCH_PAN_THRESHOLD = 20;
+
 const COLORS = {
   off: '#e5e3dc',
   on: '#e8a33d',
@@ -122,7 +125,7 @@ export function createBoard(
   let spaceDown = false;
 
   let gesture:
-    | { kind: 'press'; id: number; cell: { r: number; c: number } }
+    | { kind: 'press'; id: number; cell: { r: number; c: number }; startX: number; startY: number }
     | { kind: 'pan'; id: number; lastX: number; lastY: number }
     | { kind: 'pinch'; gx: number; gy: number; lastDist: number }
     | null = null;
@@ -546,12 +549,15 @@ export function createBoard(
     const point = localPoint(event);
 
     wrap.focus({ preventScroll: true });
-    base.setPointerCapture(event.pointerId);
 
     // ── 触屏 ─────────────────────────────────────────────
     if (event.pointerType === 'touch') {
       event.preventDefault();
       pointers.set(event.pointerId, point);
+
+      // 触屏不 setPointerCapture：多指捏合时浏览器对指针捕获的行为不一致，
+      // 捕获会吞掉第二根手指的 move/up 事件，捏合就永远触发不了。
+      // 靠 .stage 的 touch-action:none 让整个手势期间事件都派发到 base 即可。
 
       if (pointers.size >= 2) {
         // 第二根（及更多）手指落下 = 导航意图：正在进行的落子整个取消，绝不落子
@@ -578,9 +584,9 @@ export function createBoard(
       const hit = cellAt(view, point.x, point.y, W, H);
       stopViewAnimation();
       if (enabled && hit !== null) {
-        // 触屏没有先行悬停：按下即显示十字预览，松手才落子，滑开即取消
+        // 触屏没有先行悬停：按下即显示十字预览；轻点松手落子，滑过阈值则转平移
         pressed = hit;
-        gesture = { kind: 'press', id: event.pointerId, cell: hit };
+        gesture = { kind: 'press', id: event.pointerId, cell: hit, startX: point.x, startY: point.y };
         setHover(hit);
         requestDraw();
         return;
@@ -593,6 +599,7 @@ export function createBoard(
     }
 
     // ── 鼠标 / 触控笔 ─────────────────────────────────────
+    base.setPointerCapture(event.pointerId);
     const hit = cellAt(view, point.x, point.y, W, H);
     const wantsPan =
       event.button === 1 ||
@@ -615,7 +622,7 @@ export function createBoard(
       return;
     }
     pressed = hit;
-    gesture = { kind: 'press', id: event.pointerId, cell: hit };
+    gesture = { kind: 'press', id: event.pointerId, cell: hit, startX: point.x, startY: point.y };
     requestDraw();
   });
 
@@ -637,6 +644,8 @@ export function createBoard(
     }
 
     if (gesture?.kind === 'pan' && gesture.id === event.pointerId) {
+      // 触屏平移也同步记录位置，保证平移中落下第二指时捏合起点准确
+      if (event.pointerType === 'touch') pointers.set(event.pointerId, point);
       const next = clampPan({
         scale: view.scale,
         offsetX: view.offsetX + point.x - gesture.lastX,
@@ -652,6 +661,31 @@ export function createBoard(
 
     const hit = cellAt(view, point.x, point.y, W, H);
     if (gesture?.kind === 'press' && gesture.id === event.pointerId) {
+      // 触屏单指：位移超过阈值就升级为平移，不再算下棋。
+      // 这是「滑动平移」与「点一下下棋」的分界，否则单指滑动时棋盘纹丝不动，
+      // 用户会以为触屏失灵、棋盘像张图片。
+      if (
+        event.pointerType === 'touch' &&
+        Math.hypot(point.x - gesture.startX, point.y - gesture.startY) > TOUCH_PAN_THRESHOLD
+      ) {
+        pressed = null;
+        setHover(null);
+        gesture = { kind: 'pan', id: event.pointerId, lastX: gesture.startX, lastY: gesture.startY };
+        wrap.classList.add('dragging');
+        syncCursor();
+        // 立即按本次位移平移一次，避免「滑过阈值的那一下」被吞掉
+        const next = clampPan({
+          scale: view.scale,
+          offsetX: view.offsetX + point.x - gesture.lastX,
+          offsetY: view.offsetY + point.y - gesture.lastY,
+        }, cssW, cssH, W, H);
+        view = next;
+        goal = next;
+        gesture.lastX = point.x;
+        gesture.lastY = point.y;
+        requestDraw();
+        return;
+      }
       // 单指落子时同步记录位置：万一这根手指没松、第二指又落下，
       // 捏合起点才不会用一根早已挪走的手指的旧坐标
       if (event.pointerType === 'touch') pointers.set(event.pointerId, point);

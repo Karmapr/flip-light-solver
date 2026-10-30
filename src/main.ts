@@ -78,13 +78,43 @@ function rebuildGrid(): void {
   renderPanel();
 }
 
+/** 上一次同步时的快照，用于「只更新真正变化的值」，避免对没变的控件重写触发 CSS 过渡闪烁。 */
+let lastSolving: boolean | null = null;
+let lastPhase: string | null = null;
+let lastMode: Mode | null = null;
+let lastGoal: Goal | null = null;
+let lastStatus: string | null = null;
+/** 求解发起的「禁用控件」用短定时器延后：小棋盘几乎瞬间解完，若在延时内完成就不禁用，按钮完全不闪。 */
+let disableTimer: ReturnType<typeof setTimeout> | null = null;
+
+function setAllDisabled(disabled: boolean): void {
+  for (const button of modeGroup.querySelectorAll<HTMLButtonElement>('button[data-mode]')) {
+    button.disabled = disabled;
+  }
+  for (const button of goalGroup.querySelectorAll<HTMLButtonElement>('button[data-goal]')) {
+    button.disabled = disabled;
+  }
+  applyButton.disabled = disabled;
+  allOffButton.disabled = disabled;
+  allOnButton.disabled = disabled;
+  randomSolvableButton.disabled = disabled;
+  randomAnyButton.disabled = disabled;
+  budgetInput.disabled = disabled;
+  solveButton.disabled = disabled;
+}
+
 function syncControls(): void {
   const solving = session.phase === 'solving';
   const guiding = session.phase === 'guiding';
 
   board.setInteraction(session.mode, !solving);
-  boardRoot.dataset.phase = session.phase;
-  playStatus.textContent = solving
+
+  if (lastPhase !== session.phase) {
+    lastPhase = session.phase;
+    boardRoot.dataset.phase = session.phase;
+  }
+
+  const status = solving
     ? '正在求解'
     : guiding
       ? `解题引导 · 还剩 ${session.remaining} 步`
@@ -93,24 +123,42 @@ function syncControls(): void {
         : session.mode === 'setup'
           ? '设置盘面'
           : '自由游玩';
-
-  for (const button of modeGroup.querySelectorAll<HTMLButtonElement>('button[data-mode]')) {
-    button.setAttribute('aria-pressed', String(button.dataset.mode === session.mode));
-    button.disabled = solving;
-  }
-  for (const button of goalGroup.querySelectorAll<HTMLButtonElement>('button[data-goal]')) {
-    button.setAttribute('aria-pressed', String(button.dataset.goal === session.goal));
-    button.disabled = solving;
+  if (lastStatus !== status) {
+    lastStatus = status;
+    playStatus.textContent = status;
   }
 
-  applyButton.disabled = solving;
-  allOffButton.disabled = solving;
-  allOnButton.disabled = solving;
-  randomSolvableButton.disabled = solving;
-  randomAnyButton.disabled = solving;
-  budgetInput.disabled = solving;
-  solveButton.disabled = solving;
-  solveButton.textContent = guiding ? '重新求解' : '求解';
+  if (lastSolving !== solving) {
+    lastSolving = solving;
+    // 禁用（solving=true）延后一瞬，避免秒解时按钮「变灰→立即恢复」的闪烁；
+    // 恢复（solving=false）立即执行。
+    if (disableTimer !== null) {
+      clearTimeout(disableTimer);
+      disableTimer = null;
+    }
+    if (solving) {
+      disableTimer = setTimeout(() => {
+        disableTimer = null;
+        if (session.phase === 'solving') setAllDisabled(true);
+      }, 120);
+    } else {
+      setAllDisabled(false);
+    }
+  }
+
+  if (lastMode !== session.mode) {
+    lastMode = session.mode;
+    for (const button of modeGroup.querySelectorAll<HTMLButtonElement>('button[data-mode]')) {
+      button.setAttribute('aria-pressed', String(button.dataset.mode === session.mode));
+    }
+  }
+
+  if (lastGoal !== session.goal) {
+    lastGoal = session.goal;
+    for (const button of goalGroup.querySelectorAll<HTMLButtonElement>('button[data-goal]')) {
+      button.setAttribute('aria-pressed', String(button.dataset.goal === session.goal));
+    }
+  }
 }
 
 applyButton.addEventListener('click', () => {
@@ -183,10 +231,13 @@ budgetInput.addEventListener('change', () => {
 });
 
 solveButton.addEventListener('click', () => {
+  // 求解前后盘面灯不变化，只有「引导标记」需要清除：仅在之前处于引导/完成态
+  // （盘上有 hit/wrong 标记）时才重绘，否则避免一次无谓的全盘重绘。
+  const hadMarks = session.phase === 'guiding' || session.phase === 'done';
   const request = session.beginSolve();
   if (request === null) return;
   worker.postMessage(request);
-  repaintBoard();
+  if (hadMarks) repaintBoard();
   syncControls();
   renderPanel();
 });

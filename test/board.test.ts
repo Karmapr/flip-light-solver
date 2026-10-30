@@ -515,7 +515,33 @@ test('触屏单指：滑出格子松手即取消，不落子', () => {
   base.fire('pointermove', { pointerId: 1, pointerType: 'touch', clientX: point.x + 160, clientY: point.y + 80 });
   base.fire('pointerup', { pointerId: 1, pointerType: 'touch', button: 0, clientX: point.x + 160, clientY: point.y + 80 });
 
-  assert.equal(toggles.length, 0, '触屏滑开松手应当取消');
+  assert.equal(toggles.length, 0, '触屏滑动超过阈值应转为平移，不落子');
+});
+
+test('触屏单指：位移在阈值内仍算下棋', () => {
+  const { board, base, toggles } = setup(4, 4);
+  board.setInteraction('game', true);
+  const point = centerOf(4, 4, 2, 2);
+
+  // 位移 8px < 阈值 20px：仍是「点一下下棋」
+  base.fire('pointerdown', { pointerId: 1, pointerType: 'touch', button: 0, clientX: point.x, clientY: point.y });
+  base.fire('pointermove', { pointerId: 1, pointerType: 'touch', clientX: point.x + 8, clientY: point.y + 4 });
+  base.fire('pointerup', { pointerId: 1, pointerType: 'touch', button: 0, clientX: point.x + 8, clientY: point.y + 4 });
+
+  assert.deepEqual(toggles, [{ r: 2, c: 2 }], '位移小于阈值时松手应当落子');
+});
+
+test('触屏单指：位移超过阈值转为平移，不落子', () => {
+  const { board, base, toggles } = setup(4, 4);
+  board.setInteraction('game', true);
+  const point = centerOf(4, 4, 2, 2);
+
+  // 位移 30px > 阈值 20px：转为平移
+  base.fire('pointerdown', { pointerId: 1, pointerType: 'touch', button: 0, clientX: point.x, clientY: point.y });
+  base.fire('pointermove', { pointerId: 1, pointerType: 'touch', clientX: point.x + 30, clientY: point.y + 0 });
+  base.fire('pointerup', { pointerId: 1, pointerType: 'touch', button: 0, clientX: point.x + 30, clientY: point.y + 0 });
+
+  assert.equal(toggles.length, 0, '位移超过阈值时应平移而非落子');
 });
 
 test('触屏双指：捏合缩放，不会误落子', () => {
