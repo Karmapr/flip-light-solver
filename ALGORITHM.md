@@ -55,16 +55,16 @@ N = h*w
 
 定义仅影响**同一行**的操作：
 
-\[
-A(x)=x\oplus((x\ll1)\land(2^w-1))\oplus(x\gg1).
-\]
+```
+A(x) = x ⊕ ((x << 1) & (2^w − 1)) ⊕ (x >> 1)
+```
 
 给定初始亮灯行 `b[0..h-1]` 和任意第一行点击向量 `p[0]=x`，后续点击行被唯一确定：
 
-\[
-p_{-1}=0,\qquad
-p_{r+1}=b_r\oplus p_{r-1}\oplus A(p_r),\quad 0\le r<h.
-\]
+```
+p[-1] = 0
+p[r+1] = b[r] ⊕ p[r-1] ⊕ A(p[r])     （0 ≤ r < h）
+```
 
 这里计算出的 `p_h` **不是可以点击的第 h 行**，而是最末行尚未消除的残留状态。只有 `p_h=0` 时，完整点击方案 `p_0..p_{h-1}` 才是有效解。
 
@@ -116,15 +116,15 @@ v_c = curr
 
 对实际初始棋盘执行 `chase(0,b)`，设残留为 `s`。对于任意第一行点击 `x`，残留恰为：
 
-\[
-\operatorname{residue}(x,b)=s\oplus Mx.
-\]
+```
+residue(x, b) = s ⊕ M·x
+```
 
 因此有效解的充要条件是：
 
-\[
-\boxed{Mx=s\pmod2}.
-\]
+```
+M·x = s  (mod 2)
+```
 
 注意这里的“目标残留”是 `s`；右侧不是 `0`，除非初始谜面直接追灯后的残留恰为 `0`。
 
@@ -132,9 +132,9 @@ v_c = curr
 
 对固定的 `M` 只进行一次消元；同时维护初始为单位阵的 `E`，使最终满足：
 
-\[
-R=EM.
-\]
+```
+R = E · M
+```
 
 行交换和行异或必须对 `R`、`E` **同步**执行。选主元时逐列从左向右找可用行，消去该列的其他所有行，得到行最简形（RREF），记录 `pivots[0..r-1]` 和 `rank=r`。无主元的列是自由列。
 
@@ -164,9 +164,9 @@ for col in 0 .. w-1:
 
 由 `rank` 和 `w` 得零空间维数：
 
-\[
-\boxed{d=w-rank}.
-\]
+```
+d = w − rank
+```
 
 如果有解，**全部有效点击方案的数量精确等于** `2^d`；如果无解则为 `0`。无需枚举就能计算这个数量。
 
@@ -197,16 +197,15 @@ assert residue == 0
 
 **最关键的优化表达式：**
 
-\[
-\boxed{C(t)=C_0\oplus\bigoplus_{i=0}^{d-1}t_i B_i,
-\qquad t\in GF(2)^d.}
-\]
+```
+C(t) = C0 ⊕ (t[0]·B[0] ⊕ t[1]·B[1] ⊕ … ⊕ t[d-1]·B[d-1])，  t ∈ GF(2)^d
+```
 
 这里 `C0`、`B[i]` 都是包含 `N=h*w` 个点击位的整数。**每种组合无需重新追灯。** 优化问题成为：
 
-\[
-\boxed{\min_{t\in GF(2)^d}\operatorname{popcount}(C(t)).}
-\]
+```
+min  popcount(C(t))     （对 t ∈ GF(2)^d 取最小）
+```
 
 如果 `d=0`，解唯一，直接返回 `C0` 及 `OPTIMAL`。如果 `C0=0`，最优点击次数就是零，可立即结束。
 
@@ -243,27 +242,27 @@ for k in range(1, 1 << d):
 
 对于棋盘第 `p` 个点击位（`0<=p<N`），定义它在所有基中的影响签名：
 
-\[
-\sigma_p=\sum_{i=0}^{d-1}\operatorname{bit}(B_i,p)2^i.
-\]
+```
+σ[p] = Σ_{i=0..d-1} bit(B[i], p) · 2^i
+```
 
-令 `a_p = bit(C0,p)`，建立长度 `2^d` 的**有符号**数组：
+令 `a[p] = bit(C0,p)`，建立长度 `2^d` 的**有符号**数组：
 
-\[
-f[v]=\sum_{p:\sigma_p=v}(-1)^{a_p}.
-\]
+```
+f[v] = Σ_{p : σ[p]=v} (−1)^a[p]
+```
 
 进行原地 XOR 型 Walsh–Hadamard 变换，得到：
 
-\[
-F[t]=\sum_v f[v](-1)^{\operatorname{parity}(v\land t)}.
-\]
+```
+F[t] = Σ_v f[v] · (−1)^parity(v & t)
+```
 
 那么 `t` 对应的点击次数**恰好**是：
 
-\[
-\boxed{\operatorname{cost}(t)=\frac{N-F[t]}2.}
-\]
+```
+cost(t) = (N − F[t]) / 2
+```
 
 所以只需取 `F[t]` 最大的位置 `t*`，然后通过 `C0 XOR 对应的 B_i` 恢复最优点击位图。
 
@@ -295,10 +294,10 @@ for bit in 0 .. d-1:
 
 **廉价下界 1（永远合法）：**
 
-\[
-U_k=\bigvee_{i=k}^{d-1}B_i,\qquad
-LB_{\rm fixed}(k,state)=\operatorname{popcount}(state\land\neg U_k).
-\]
+```
+U[k] = B[k] ∨ B[k+1] ∨ … ∨ B[d-1]
+LB_fixed(k, state) = popcount(state & ~U[k])
+```
 
 `U[k]` 由后往前用 suffix-OR 预计算。被 `U[k]` 排除的点击位，未来任何选择都无法改变，因此它们现在的 1 必须保留。
 
@@ -306,30 +305,26 @@ LB_{\rm fixed}(k,state)=\operatorname{popcount}(state\land\neg U_k).
 
 对每个深度 `k`、块 `j` 和局部状态 `s`，预计算：
 
-\[
-D_{k,j}[s]=\min_{t_k,\ldots,t_{d-1}}
-\operatorname{popcount}\Bigl(s\oplus
-\bigoplus_{i=k}^{d-1} t_i (B_i|_{Q_j})\Bigr).
-\]
+```
+D[k][j][s] = min over (t[k], …, t[d-1]) of
+             popcount( s ⊕ (t[k]·(B[k]|Q[j]) ⊕ … ⊕ t[d-1]·(B[d-1]|Q[j])) )
+```
 
 **重要：无需显式枚举全部后缀组合。** 使用下面的精确递推即可：
 
-\[
-D_{d,j}[s]=\operatorname{popcount}(s),
-\]
+```
+D[d][j][s] = popcount(s)
 
-\[
-\boxed{D_{k,j}[s]=\min\left(D_{k+1,j}[s],\;D_{k+1,j}[s\oplus(B_k|_{Q_j})]\right).}
-\]
+D[k][j][s] = min( D[k+1][j][s],  D[k+1][j][s ⊕ (B[k]|Q[j])] )
+```
 
-对块长 `q_j`，表格 `s` 的范围是 `0..2^{q_j}-1`。实现时若本层投影 `B_k|Q_j = 0`，直接共享下一层的表格，不需要复制。
+对块长 `q_j`，表格 `s` 的范围是 `0..2^{q_j}-1`。实现时若本层投影 `B[k]|Q[j] = 0`，直接共享下一层的表格，不需要复制。
 
 对于任意 B&B 节点，定义：
 
-\[
-\boxed{LB_{\rm blocks}(k,state)=
-\sum_j D_{k,j}[state|_{Q_j}].}
-\]
+```
+LB_blocks(k, state) = Σ_j  D[k][j][ state 在块 Q[j] 上的切片 ]
+```
 
 **这一定是合法下界：** 每个块是独立放宽优化（容许不同块选择互不一致的后缀变量），所以各块最小成本之和不可能高于真正全局最小成本。
 
@@ -369,10 +364,10 @@ dfs(k, state):
 
 如果项目允许依赖 `ortools`，可以直接对零空间系数 `t_i` 建模，以最大化利用已经消元后的结构。对每格新建布尔点击变量 `c_p`，满足：
 
-\[
-c_p = a_p\oplus\bigoplus_{i:\operatorname{bit}(B_i,p)=1}t_i,
-\quad a_p=\operatorname{bit}(C_0,p).
-\]
+```
+c[p] = a[p] ⊕ ( ⊕ over i 满足 bit(B[i],p)=1 的 t[i] )
+a[p] = bit(C0, p)
+```
 
 最小化 `sum(c_p)`。使用 OR-Tools CP-SAT 的 `add_bool_xor`，它要求给定 literal 列表的 XOR 为 **1**。正确建模：
 
