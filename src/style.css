@@ -439,5 +439,8 @@ canvas.board-canvas {
     flex: 1;
   }
 
-  .result { height: 180px; }
+  .result {
+    height: 180px;
+    flex-shrink: 0;
+  }
 }
